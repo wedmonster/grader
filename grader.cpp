@@ -2,6 +2,9 @@
 #include <vector>
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -12,8 +15,9 @@
 #include <signal.h>
 #include "colormod.h"
 
-using namespace std;
 
+using namespace std;
+#define MSG_MAX 256
 #define STAT_ERR -1
 #define STAT_RN 1
 #define STAT_TL 2
@@ -141,7 +145,7 @@ int run(const string file_path,
         dup2(fd, 0); // stdin redirection
         dup2(fd_out, 1);
         dup2(fd_out, 2);
-        execl("/usr/bin/java", "java", "-classpath", file_path.c_str(), "Main", 0);
+        execl("/usr/bin/java", "java", "-classpath", file_path.c_str(), "ds.test.Main", 0);
         //exit(0);
     }
 
@@ -153,7 +157,8 @@ int diff(const string out_file_path,
         const string diff_file_path){
 
     char cmd[256];
-    sprintf(cmd, "diff %s %s > %s", out_file_path.c_str(), ret_file_path.c_str(), diff_file_path.c_str());
+    //sprintf(cmd, "diff %s %s > %s", out_file_path.c_str(), ret_file_path.c_str(), diff_file_path.c_str());
+    sprintf(cmd, "bash -c \"diff <(sed 's/[[:blank:]]//g' %s | tr A-Z a-z | tr -d '.!') <(sed 's/[[:blank:]]//g' %s | tr A-Z a-z | tr -d '.!') > %s\"", out_file_path.c_str(), ret_file_path.c_str(), diff_file_path.c_str());
     int stat = system(cmd);
     //cout << "diff stat " << stat << " " << WEXITSTATUS(stat) << endl;
     stat = WEXITSTATUS(stat);
@@ -163,9 +168,17 @@ int diff(const string out_file_path,
     return STAT_ERR;
 }
 
+string getStatStr(int stat){
+   if(stat == STAT_TL) return "TL";
+   if(stat == STAT_RE) return "RE";
+   if(stat == STAT_WA) return "WA";
+   if(stat == STAT_AC) return "AC";
+   return ""; 
+}
+
 void write_log(const string log_path, vector<Record>& log, int nCase, int point){
     ofstream log_file;
-    log_file.open(log_path);
+    log_file.open(log_path.c_str());
 
     log_file<<"id";
     log_file<<",submitted";
@@ -186,7 +199,7 @@ void write_log(const string log_path, vector<Record>& log, int nCase, int point)
                 int ret = 0;
                 if(rets[k] == STAT_AC) ret = 1;
                 total += ret*point;
-                log_file << "," << ret*point;
+                log_file << "," << ret*point << "(" << getStatStr(rets[k]) <<")";
             }
             log_file << "," << total << endl;
         }else{
@@ -228,7 +241,7 @@ string toStringAbb(int stat){
 vector< pair<string, string> > readStudents(const string path){
     vector< pair<string, string> > list;
     ifstream student_file;
-    student_file.open(path);
+    student_file.open(path.c_str());
     string id, name, line;
 
     while(getline(student_file, line)){
@@ -265,20 +278,40 @@ int main(int argc, const char *argv[])
       }
       closedir(dir);
       }*/
+
+    if(argc < 2){
+        cout << "Please input the ID of the programming assignment: 0 ~ 5." << endl;
+        return 1;
+    }
+
+    int pno = 0;
+    sscanf(argv[1], "%d", &pno);
+
+    if(pno < 0 || pno > 6){
+        cout << "Please input the ID of the programming assignment: 0 ~ 5." << endl;
+        return 1;
+    }
+
     vector< Record > log;
     char msg[256];
 
-    const int limit_time = 2; //2 seconds
-    string PA_NO = "PA_00";
-    string JARS_PATH = "./PA/PA_00/jars";
+    const int limit_time = 20; //2 seconds
+    
+    
+    char str_pa_no[MSG_MAX] = "";
+    sprintf(str_pa_no, "PA_%02d", pno);
+
+    string PA_NO(str_pa_no);
+    string JARS_PATH = "./PA/"+PA_NO+"/jars";
     string STUDENT_PATH = "./students.csv";
-    string LOG_PATH = "./PA/PA_00/log.csv";
-    string INPUT_PATH = "./PA/PA_00/input";
-    string OUTPUT_PATH = "./PA/PA_00/output";
-    string RESULT_PATH = "./PA/PA_00/result";
-    string DIFF_PATH = "./PA/PA_00/diff";
-    int nCase = 2;
-    int pno = 0;
+    string LOG_PATH = "./PA/"+PA_NO+"/log.csv";
+    string INPUT_PATH = "./PA/"+PA_NO+"/input";
+    string OUTPUT_PATH = "./PA/"+PA_NO+"/output";
+    string RESULT_PATH = "./PA/"+PA_NO+"/result";
+    string DIFF_PATH = "./PA/"+PA_NO+"/diff";
+    
+    
+    int nCase = 10;
     int point = 10;
 
     vector< pair<string, string> > student_list = readStudents(STUDENT_PATH);
@@ -319,31 +352,31 @@ int main(int argc, const char *argv[])
             char out_file_path[256];
             char ret_file_path[256];
             char diff_file_path[256];
-            for(int i = 1; i <= nCase; i++){
-                sprintf(in_file_path, "%s/input%02d", INPUT_PATH.c_str(), i);
+            for(int i = 0; i < nCase; i++){
+                sprintf(in_file_path, "%s/input%02d.txt", INPUT_PATH.c_str(), i);
                 sprintf(ret_file_path, "%s/PA_%02d_%s_result%02d", RESULT_PATH.c_str(), pno, id.c_str(), i);
                 //cout << in_file_path << endl;
                 //cout << ret_file_path << endl;
                 int stat = run(jar_file_path, in_file_path, ret_file_path, limit_time);
                 sprintf(msg, "%02d-th run result: %s", i, toString(stat).c_str());
                 pl(id, msg);
-                record.setRstat(i-1, stat);
+                record.setRstat(i, stat);
             }
 
             //diff
-            for(int i = 1; i <= nCase; i++){
-                if(record.getRstat(i-1) == STAT_RN){
-                    sprintf(out_file_path, "%s/output%02d", OUTPUT_PATH.c_str(), i);
+            for(int i = 0; i < nCase; i++){
+                if(record.getRstat(i) == STAT_RN){
+                    sprintf(out_file_path, "%s/output%02d.txt", OUTPUT_PATH.c_str(), i);
                     sprintf(ret_file_path, "%s/PA_%02d_%s_result%02d", RESULT_PATH.c_str(), pno, id.c_str(), i);
                     sprintf(diff_file_path, "%s/PA_%02d_%s_diff%02d", DIFF_PATH.c_str(), pno, id.c_str(), i);
                     int stat = diff(out_file_path, ret_file_path, diff_file_path);
                     sprintf(msg, "%02d-th diff result: %s", i, toString(stat).c_str() );
                     pl(id, msg);
-                    record.setDstat(i-1, stat);
+                    record.setDstat(i, stat);
                 }else{
-                    sprintf(msg, "%02d-th diff result: %s", i, toString(record.getRstat(i-1)).c_str());
+                    sprintf(msg, "%02d-th diff result: %s", i, toString(record.getRstat(i)).c_str());
                     pl(id, msg);
-                    record.setDstat(i-1, record.getRstat(i-1));
+                    record.setDstat(i, record.getRstat(i));
                 }
             }
 
