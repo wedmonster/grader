@@ -6,6 +6,21 @@
 #include <map>
 #include "colormod.h"
 using namespace std;
+
+string help_message = "Grader inserter-v1.1 command list==\n"
+                      "i 12345 10 : insert score 10 of yyyy-12345\n"
+                      "   - if 12345 is overlapped, it will lists the student ids; select one of them\n"
+                      "m 12345 10 : modify yyyy-12345's score into 10\n" 
+                      "f 12345 : yyyy-12345's score\n" 
+                      "n : print # of scores entered until now\n" 
+                      "l : list all score information entered until now\n" 
+                      "s : save score information entered until now\n"
+                      "q : terminate the programe\n"
+                      "h : list help messages\n"
+                      "cmds: i, m, f, n, l, s, q, h";
+
+
+
 Color::Modifier red(Color::FG_RED);
 Color::Modifier green(Color::FG_GREEN);
 Color::Modifier def(Color::FG_DEFAULT);
@@ -52,7 +67,7 @@ int main(int argc, const char *argv[])
 {
     ifstream file;
     vector<string> list;
-    string path = "./students.csv";
+    string path = "./students/students-16sm.csv";
     file.open(path.c_str());
     string line, id, name;
     while(getline(file, line)){
@@ -67,32 +82,12 @@ int main(int argc, const char *argv[])
     cout << "The system is ready. Please give a name of the file: ";
     cin >> save_file_name;
 
-    /*int no = 0; 
-      for(int i = 0; i < list.size(); i++){
-      string src_id = list[i];
-      for(int j = i+1; j < list.size(); j++){
-      string tar_id = list[j];
-      int cnt = 0;       
-      for(int k = 5; k < src_id.size(); k++){
-      if(src_id.c_str()[k] == tar_id.c_str()[k]){
-    //cout<< "o";
-    cnt++;
-    }else{
-    //cout<< "x";
-    }
-    }
-    if(cnt >= 5){
-    cout << no++ <<" " <<src_id << " " << tar_id << endl;
-    }
-    //cout << endl;
-    }
-    }*/
     string cmd, pat, score;
     map<string, string> log;
     while(getline(cin, line)){
         istringstream iss(line);
         iss >> cmd;
-        if(cmd == "0"){
+        if(cmd == "i"){
             score = "";
             pat = "";
             iss >> pat >> score;
@@ -135,16 +130,39 @@ int main(int argc, const char *argv[])
                 if(req == "y") {
                     log[in_id] = score;
                     cout << red << "size: " << log.size() << ", " << green << in_id + "'s score is " + log[in_id] << def << endl;
-                    
                 }
             }else{
                 log[in_id] = score;
                 cout << red << "size: " << log.size() << ", " << green << in_id + "'s score is modified to " + log[in_id] << def << endl;
             }
+        }else if(cmd == "f"){
+            pat = "";
+            iss >> pat;
+            //handle exception: if there is no id pattern
+            if(pat == ""){
+                cout << red << "no id pattern is entered!" << def << endl;
+                continue;
+            }
+
+            //find an id matched with pat
+            string in_id = searchID(list, pat);
+            if(in_id == "") continue;
+
+            //find the id in the log
+            map<string, string>::iterator it;
+            it = log.find(in_id);
+            if(it == log.end()){
+                //if there is id but no score
+                cout << red << "there is no score on log with " << in_id << def << endl;
+                continue;
+            }else{
+                cout << red << in_id << "'s score is " << log[in_id] << def << endl;
+            }
+        }else if(cmd == "n"){
+            cout << red << "# of scores entered until now: " << log.size() << def << endl;
         }else if(cmd == "s"){
             ofstream save_file;
             save_file.open(string("./log/" + save_file_name + ".csv").c_str());
-            
             save_file << "id," + save_file_name <<endl;
             map<string, string>::iterator it;
             for (int i = 0; i < list.size(); i++) {
@@ -157,7 +175,6 @@ int main(int argc, const char *argv[])
                     save_file << id << "," << 0 << endl;
                 }
             }
-            
             save_file.close();
             cout << green << "save complete!!" << def << endl;
         }else if(cmd == "l"){
@@ -170,8 +187,11 @@ int main(int argc, const char *argv[])
             }
         }else if(cmd == "q"){
             return 0;
-        }else{
-            cout << "cmds are i, s, l, m, q." << endl;
+        }else if(cmd == "h"){
+            cout << help_message << endl;
+        }
+        else{
+            cout << help_message << endl;
         }
     }
 
