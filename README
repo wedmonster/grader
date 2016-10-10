@@ -37,7 +37,8 @@ The name formats of input and output are as follows:
 
 Note that `grader` is allowed to grade 10 input files, i.e., you should prepare 10 input and output files. 
 To modify the number of test cases, please change `int nCase` in `grader.cpp`, and re-build it. 
-Each input file will be assigned 10 points if the output of a user is correct.
+Each input file will be assigned 10 points if the output corresponding to the input is correct.
+To modify the point per input, please change `int point` in `grade.cpp`, and re-build it. 
 
 You need to locate jar files into 'PA/PA_00/jars'. 
 The name foramt of jar is as follows:

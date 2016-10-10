@@ -1,4 +1,4 @@
-list_path    ./students/stuaaaadents.csv
-package      ds.tset.Main
+list_path    ./students/students.csv
+package      ds.test.Main
 
 
