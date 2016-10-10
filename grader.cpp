@@ -25,6 +25,8 @@ using namespace std;
 #define STAT_WA 4
 #define STAT_AC 5
 
+map<string, string> path_map;
+
 class Record{
     private:
         string id;
@@ -145,7 +147,8 @@ int run(const string file_path,
         dup2(fd, 0); // stdin redirection
         dup2(fd_out, 1);
         dup2(fd_out, 2);
-        execl("/usr/bin/java", "java", "-classpath", file_path.c_str(), "ds.test.Main", 0);
+        string package_name = path_map["package"];
+        execl("/usr/bin/java", "java", "-classpath", file_path.c_str(), package_name.c_str(), 0);
         //exit(0);
     }
 
@@ -263,6 +266,34 @@ void pl(const string tag, const string msg){
     cout << "[" << red << tag << def << "] " << msg << endl;
 }
 
+bool read_config(){
+    string config_path = "./config";
+    fstream file;
+    file.open(config_path.c_str());
+
+    string line, key, value;
+    while(getline(file, line)){
+        stringstream ss(line);
+        ss >> key >> value;
+        path_map[key] = value;
+    }
+
+    file.close();
+
+    string list_path = path_map["list_path"];
+
+    file.open(list_path.c_str());
+
+    if(file.fail()) return false;
+    file.close();
+
+    string package =path_map["package"];
+    
+    if(package.length() == 0) return false;
+
+    return true;
+}
+
 int main(int argc, const char *argv[])
 {
     // listing all jar files
@@ -292,6 +323,12 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
+
+    if(!read_config()){
+        cout << "Configuration fails! check ./config file." << endl;
+        return 1;
+    }
+
     vector< Record > log;
     char msg[256];
 
@@ -303,7 +340,7 @@ int main(int argc, const char *argv[])
 
     string PA_NO(str_pa_no);
     string JARS_PATH = "./PA/"+PA_NO+"/jars";
-    string STUDENT_PATH = "./students.csv";
+    string STUDENT_PATH = path_map["list_path"];
     string LOG_PATH = "./PA/"+PA_NO+"/log.csv";
     string INPUT_PATH = "./PA/"+PA_NO+"/input";
     string OUTPUT_PATH = "./PA/"+PA_NO+"/output";
